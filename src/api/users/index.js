@@ -91,7 +91,7 @@ usersRouter.post("/register", async (req, res, next) => {
       return res.status(400).send({ message: `user with this ${existingField} already exists` })
     }
 
-    // If the surname and email are unique, create the new user
+    // If the email is unique, create the new user
     const newUser = new UsersModel(req.body)
     const { _id } = await newUser.save()
 
