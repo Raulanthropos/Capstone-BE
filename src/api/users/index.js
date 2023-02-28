@@ -22,23 +22,23 @@ usersRouter.get("/", async (req, res, next) => {
     }
   });
 
-  usersRouter.post("/", async (req, res, next) => {
-    try {
-      const newUser = new UsersModel(req.body);
-      const checkUsername = await UsersModel.findOne({
-        email: newUser.email,
-      });
-      if (checkUsername) {
-        next(createHttpError(400, "username already in use!"));
-      } else {
-        const { _id } = await newUser.save();
-        res.status(201).send({ _id });
-        console.log(`user with id ${_id} successfully created!`);
-      }
-    } catch (error) {
-      next(error);
-    }
-  });
+  // usersRouter.post("/", async (req, res, next) => {
+  //   try {
+  //     const newUser = new UsersModel(req.body);
+  //     const checksurname = await UsersModel.findOne({
+  //       email: newUser.email,
+  //     });
+  //     if (checksurname) {
+  //       next(createHttpError(400, "surname already in use!"));
+  //     } else {
+  //       const { _id } = await newUser.save();
+  //       res.status(201).send({ _id });
+  //       console.log(`user with id ${_id} successfully created!`);
+  //     }
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // });
 
   usersRouter.put("/:userId", JWTAuthMiddleware, async (req, res, next) => {
     try {
@@ -82,16 +82,16 @@ usersRouter.get("/", async (req, res, next) => {
 
 usersRouter.post("/register", async (req, res, next) => {
   try {
-    const { username, email } = req.body
+    const { email } = req.body
 
-    // Check if the username or email already exists in the database
-    const existingUser = await UsersModel.findOne({ $or: [{ username }, { email }] })
+    // Check if the email already exists in the database
+    const existingUser = await UsersModel.findOne({ email });
     if (existingUser) {
-      const existingField = existingUser.username === username ? "username" : "email"
+      const existingField = existingUser.email === email ? "email" : "unique"
       return res.status(400).send({ message: `user with this ${existingField} already exists` })
     }
 
-    // If the username and email are unique, create the new user
+    // If the surname and email are unique, create the new user
     const newUser = new UsersModel(req.body)
     const { _id } = await newUser.save()
 
