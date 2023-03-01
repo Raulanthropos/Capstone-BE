@@ -3,6 +3,7 @@ import listEndpoints from "express-list-endpoints";
 import cors from "cors";
 import mongoose from "mongoose";
 import usersRouter from "./api/users/index.js";
+import dogsRouter from "./api/dogs/index.js";
 import { errorHandler } from "./errorHandlers.js";
 
 const server = express();
@@ -13,6 +14,7 @@ server.use(express.json());
 
 // endpoints
 server.use("/users", usersRouter);
+server.use("/dogs", dogsRouter);
 
 server.use(errorHandler);
 
