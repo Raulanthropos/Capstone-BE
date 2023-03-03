@@ -6,6 +6,7 @@ import UsersModel from "./model.js";
 import { JWTAuthMiddleware } from "../../lib/auth/jwtAuth.js";
 import createHttpError from "http-errors";
 import { createAccessToken } from "../../lib/auth/tools.js";
+import { adminOnlyMiddleware } from "../../lib/auth/adminOnly.js";
 
 const usersRouter = express.Router();
 
@@ -21,24 +22,6 @@ usersRouter.get("/", async (req, res, next) => {
       next(error);
     }
   });
-
-  // usersRouter.post("/", async (req, res, next) => {
-  //   try {
-  //     const newUser = new UsersModel(req.body);
-  //     const checksurname = await UsersModel.findOne({
-  //       email: newUser.email,
-  //     });
-  //     if (checksurname) {
-  //       next(createHttpError(400, "surname already in use!"));
-  //     } else {
-  //       const { _id } = await newUser.save();
-  //       res.status(201).send({ _id });
-  //       console.log(`user with id ${_id} successfully created!`);
-  //     }
-  //   } catch (error) {
-  //     next(error);
-  //   }
-  // });
 
   usersRouter.put("/:userId", JWTAuthMiddleware, async (req, res, next) => {
     try {

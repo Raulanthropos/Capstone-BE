@@ -12,6 +12,7 @@ import { v2 as cloudinary } from "cloudinary";
 import http from "http";
 import base64 from "base-64";
 import uniqid from "uniqid";
+import { adminOnlyMiddleware } from "../../lib/auth/adminOnly.js";
 
 const dogsRouter = express.Router();
 
@@ -53,11 +54,54 @@ dogsRouter.get("/", async (req, res, next) => {
       next(error);
     }
   });
-  
 
-    dogsRouter.post("/", async (req, res, next) => {
+dogsRouter.post("/", async (req, res, next) => {
     try {
       const newDog = new DogsModel(req.body);
+      // Check if imageUrls field is included in the request body
+      if (req.body.imageUrls) {
+        const imageUrls = req.body.imageUrls;
+        const uploadResults = await Promise.all(
+          imageUrls.map(async (imageUrl) => {
+            const response = await new Promise((resolve, reject) => {
+              http.get(imageUrl, (response) => {
+                if (response.statusCode < 200 || response.statusCode > 299) {
+                  reject(
+                    new Error(
+                      `Failed to load image, status code: ${response.statusCode}`
+                    )
+                  );
+                }
+                const data = [];
+                response.on("data", (chunk) => {
+                  data.push(chunk);
+                });
+                response.on("end", () => {
+                  const imageData = Buffer.concat(data);
+                  resolve(imageData);
+                });
+                response.on("error", (error) => {
+                  reject(error);
+                });
+              });
+            });
+            const base64Data = response.toString("base64");
+            const publicId = uniqid();
+            const result = await cloudinary.uploader.upload(`data:image/jpeg;base64,${base64Data}`, { public_id: publicId, folder: "public/images" });
+            return result;
+          })
+        );
+        const imageMetadata = uploadResults.map((result) => {
+          return {
+            fileName: result.public_id,
+            size: result.bytes,
+            type: result.format,
+          };
+        });
+        // Set the images array of the newDog document to the uploaded image metadata
+        newDog.images = imageMetadata;
+      }
+  
       const checkDogName = await DogsModel.findOne({
         name: newDog.name,
       });
@@ -90,7 +134,8 @@ dogsRouter.get("/", async (req, res, next) => {
     try {
       const deletedDog = await DogsModel.findByIdAndDelete(req.params.id);
       if (deletedDog) {
-        res.send(deletedDog);
+        const message = `Successfully deleted ${deletedDog.name}`;
+        res.status(200).send({ message });
       } else {
         next(createHttpError(404, 'Dog not found'));
       }
@@ -98,6 +143,7 @@ dogsRouter.get("/", async (req, res, next) => {
       next(error);
     }
   });
+  
     
 
 dogsRouter.post('/:id/upload', async (req, res) => {

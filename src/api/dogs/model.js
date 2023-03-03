@@ -25,7 +25,6 @@ const dogSchema = new Schema(
 
   dogSchema.methods.toJSON = function () {
     const dogDoc = this;
-    console.log(dogDoc);
     const dog = dogDoc.toObject();
     delete dog.createdAt;
     delete dog.updatedAt;

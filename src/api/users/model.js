@@ -11,7 +11,7 @@ const userSchema = new Schema (
       email: { type: String, required: true },
       password: { type: String, required: true },
       picture: {type: String, required: false, default: "https://unsplash.com/photos/85J99sGggnw"},
-      role: {type: String, required: false, default: "user"},
+      role: {type: String, enum: ["admin", "user"], required: true, default: "user"},
       description: {type: String, required: true} /*
   
    For the shelter to determine if they want to interview the user for a potential match
