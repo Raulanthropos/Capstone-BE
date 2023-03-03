@@ -7,6 +7,7 @@ const dogSchema = new Schema(
       name: { type: String, required: true },
       breed: { type: String, required: true },
       age: { type: Number, required: true },
+      gender: { type: String, enum: ["male", "female"], required: true },
       images: [
         {
           fileName: { type: String, required: true },
@@ -21,6 +22,16 @@ const dogSchema = new Schema(
     },
     { timestamps: true }
   );
+
+  dogSchema.methods.toJSON = function () {
+    const dogDoc = this;
+    console.log(dogDoc);
+    const dog = dogDoc.toObject();
+    delete dog.createdAt;
+    delete dog.updatedAt;
+    delete dog.__v;
+    return dog;
+  };
   
 
 

@@ -130,17 +130,19 @@ dogsRouter.post('/:id/upload', async (req, res) => {
       })
     );  
     const imageMetadata = uploadResults.map((result) => {
-      return {
-        fileName: result.public_id,
-        size: result.bytes,
-        type: result.format
-      };
-    });
-    // Add the uploaded image metadata to the images array in the Dog model
-    const dog = await DogsModel.findById(req.params.id);
-    dog.images.push(...imageMetadata);
-    await dog.save();
-    res.json(dog);
+        return {
+          fileName: result.public_id,
+          size: result.bytes,
+          type: result.format
+        };
+      });
+      
+      // Add the uploaded image metadata to the images array in the Dog model
+      const dog = await DogsModel.findById(req.params.id);
+      dog.images.push(...imageMetadata);
+      await dog.save();
+      res.json(dog);
+      
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Failed to upload image' });
