@@ -5,14 +5,14 @@ const {Schema, model} = mongoose;
 
 const userSchema = new Schema (
     {
-      name: { type: String, required: true },
-      surname: {type: String, required: true},
-      age: {type: Number, required: true},
-      email: { type: String, required: true },
-      password: { type: String, required: true },
+      name: { type: String, required: false, default: "John" },
+      surname: {type: String, required: false, default: "Doe"},
+      age: {type: Number, required: false, default: 18},
+      email: { type: String, required: false, default: "email@gmail.com"},
+      password: { type: String, required: false, default: "password" },
       picture: {type: String, required: false, default: "https://unsplash.com/photos/85J99sGggnw"},
       role: {type: String, enum: ["admin", "user"], required: true, default: "user"},
-      description: {type: String, required: true} /*
+      description: {type: String, required: false, default: "Descripton"} /*
   
    For the shelter to determine if they want to interview the user for a potential match
   

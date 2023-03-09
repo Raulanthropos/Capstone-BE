@@ -9,7 +9,7 @@ import { errorHandler } from "./errorHandlers.js";
 const server = express();
 const port = process.env.PORT;
 
-server.use(cors(process.env.FE_URL));
+server.use(cors("http://localhost:3000"));
 server.use(express.json());
 
 // endpoints
