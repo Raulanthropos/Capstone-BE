@@ -4,19 +4,29 @@ import cors from "cors";
 import mongoose from "mongoose";
 import usersRouter from "./api/users/index.js";
 import dogsRouter from "./api/dogs/index.js";
-import { errorHandler } from "./errorHandlers.js";
+import {
+  badRequestHandler,
+  forbiddenHandler,
+  genericErrorHandler,
+  unauthorizedHandler,
+  notFoundHandler,
+} from "./errorHandlers.js";
 
 const server = express();
 const port = process.env.PORT;
 
-server.use(cors("http://localhost:3000"));
+server.use(cors());
 server.use(express.json());
 
 // endpoints
 server.use("/users", usersRouter);
 server.use("/dogs", dogsRouter);
 
-server.use(errorHandler);
+server.use(badRequestHandler);
+server.use(forbiddenHandler);
+server.use(genericErrorHandler);
+server.use(unauthorizedHandler);
+server.use(notFoundHandler);
 
 mongoose.connect(process.env.MONGO_URL);
 

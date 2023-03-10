@@ -7,6 +7,7 @@ import { JWTAuthMiddleware } from "../../lib/auth/jwtAuth.js";
 import createHttpError from "http-errors";
 import { createAccessToken } from "../../lib/auth/tools.js";
 import { adminOnlyMiddleware } from "../../lib/auth/adminOnly.js";
+import multer from "multer";
 
 const usersRouter = express.Router();
 
@@ -23,6 +24,19 @@ usersRouter.get("/", async (req, res, next) => {
     }
   });
 
+  usersRouter.get('/:id', async (req, res, next) => {
+    try {
+      const user = await UsersModel.findById(req.params.id);
+      if (user) {
+        res.send(user);
+      } else {
+        next(createHttpError(404, 'user not found'));
+      }
+    } catch (error) {
+      next(error);
+    }
+  });
+
   usersRouter.put("/:userId", JWTAuthMiddleware, async (req, res, next) => {
     try {
       const updatedUser = await UsersModel.findByIdAndUpdate(
@@ -30,7 +44,6 @@ usersRouter.get("/", async (req, res, next) => {
         req.body,
         { new: true, runValidators: true }
       );
-  
       if (updatedUser) {
         res.send(updatedUser);
       } else {
@@ -43,7 +56,7 @@ usersRouter.get("/", async (req, res, next) => {
     }
   });
 
-  usersRouter.delete("/:userId", JWTAuthMiddleware, async (req, res, next) => {
+  usersRouter.delete("/:userId", async (req, res, next) => {
     try {
       const deletedUser = await UsersModel.findByIdAndDelete(
         req.params.userId
@@ -63,7 +76,7 @@ usersRouter.get("/", async (req, res, next) => {
 
   //6. REGISTER USER
 
-usersRouter.post("/register", async (req, res, next) => {
+usersRouter.post("/register", multer().fields(["name", "surname", "email", "password", "age", "description", "picture"]) ,async (req, res, next) => {
   try {
     const { email } = req.body
 
@@ -106,7 +119,7 @@ usersRouter.post("/login", async (req, res, next) => {
 
 //8. LOGOUT USER
 
-usersRouter.delete("/session", JWTAuthMiddleware, async (req, res, next) => {
+usersRouter.delete("/session", async (req, res, next) => {
   try {
     if (req.user) {
       const user = await UsersModel.updateOne({ id: req.user._id })
