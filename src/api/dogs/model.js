@@ -8,6 +8,7 @@ const dogSchema = new Schema(
     breed: { type: String, required: true },
     age: { type: Number, required: true },
     gender: { type: String, enum: ["male", "female"], required: true },
+    weight: { type: Number, required: true },
     images: [
       {
         url: { type: String, required: true },

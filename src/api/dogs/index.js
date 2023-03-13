@@ -97,18 +97,48 @@ dogsRouter.post("/", upload.single("image"), async (req, res, next) => {
   }
 });
 
+// dogsRouter.get("/", async (req, res, next) => {
+//     try {
+//       const mongoQuery = q2m(req.query)
+//       const total = await DogsModel.countDocuments(mongoQuery.criteria)
+//       const dogs = await DogsModel.find(mongoQuery.criteria, mongoQuery.options.fields)
+//       .limit(mongoQuery.options.limit) // No matter the order of usage of these 3 options, Mongo will ALWAYS go with SORT, then SKIP, then LIMIT
+//       .skip(mongoQuery.options.skip)
+//       .sort(mongoQuery.options.sort)
+//       if (dogs) {
+//         res.send(dogs);
+//       } else {
+//         next(createHttpError(404, `dogs not found`));
+//       }
+//     } catch (error) {
+//       next(error);
+//     }
+//   });
+
 dogsRouter.get("/", async (req, res, next) => {
-    try {
-      const dogs = await DogsModel.find();
-      if (dogs) {
-        res.send(dogs);
-      } else {
-        next(createHttpError(404, `dogs not found`));
-      }
-    } catch (error) {
-      next(error);
+  try {
+    const mongoQuery = q2m(req.query);
+    const total = await DogsModel.countDocuments(mongoQuery.criteria);
+    let sortOption = {};
+    if (req.query.sort) {
+      sortOption[req.query.sort] = req.query.order === "desc" ? -1 : 1;
+    } else {
+      sortOption = { age: req.query.order === "desc" ? -1 : 1 };
     }
-  });
+    const dogs = await DogsModel.find(mongoQuery.criteria, mongoQuery.options.fields)
+      .limit(mongoQuery.options.limit)
+      .skip(mongoQuery.options.skip)
+      .sort(sortOption);
+    if (dogs) {
+      res.send(dogs);
+    } else {
+      next(createHttpError(404, `Dogs not found`));
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
 
   dogsRouter.get('/:id', async (req, res, next) => {
     try {
