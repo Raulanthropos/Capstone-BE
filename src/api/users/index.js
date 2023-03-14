@@ -8,6 +8,7 @@ import createHttpError from "http-errors";
 import { createAccessToken } from "../../lib/auth/tools.js";
 import { adminOnlyMiddleware } from "../../lib/auth/adminOnly.js";
 import multer from "multer";
+import checkCredentials from "./model.js"
 
 const usersRouter = express.Router();
 
@@ -108,7 +109,7 @@ usersRouter.post("/login", async (req, res, next) => {
     if (user) {
       const payload = { _id: user._id }
       const accessToken = await createAccessToken(payload)
-      res.send({ accessToken })
+      res.send({ user, accessToken })
     } else {
       next(createHttpError(401, `Credentials are not ok!`))
     }
@@ -116,6 +117,7 @@ usersRouter.post("/login", async (req, res, next) => {
     next(error)
   }
 })
+
 
 //8. LOGOUT USER
 
