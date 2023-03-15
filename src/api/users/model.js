@@ -33,7 +33,6 @@ const userSchema = new Schema (
 
   userSchema.methods.toJSON = function () {
     const userDoc = this;
-    console.log(userDoc);
     const user = userDoc.toObject();
     delete user.password;
     delete user.createdAt;

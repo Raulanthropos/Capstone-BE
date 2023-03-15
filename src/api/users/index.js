@@ -105,11 +105,13 @@ usersRouter.post("/login", async (req, res, next) => {
     const { email, password } = req.body
 
     const user = await UsersModel.checkCredentials(email, password)
-
+    console.log("This is mein body", req.body);
     if (user) {
       const payload = { _id: user._id }
+      console.log("Payload", payload)
       const accessToken = await createAccessToken(payload)
-      res.send({ user, accessToken })
+      console.log("I am the accessToken", accessToken);
+      res.json({ user, accessToken });
     } else {
       next(createHttpError(401, `Credentials are not ok!`))
     }
