@@ -59,7 +59,7 @@ export const JWTAuthMiddleware = async (req, res, next) => {
       };
       
       // 5. Check if the user ID in the request path matches the ID of the user associated with the access token
-      if (req.params.userId !== req.user._id) {
+      if (!req.user._id) {
         next(
           createHttpError(
             401,

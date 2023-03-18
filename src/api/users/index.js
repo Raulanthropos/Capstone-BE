@@ -25,6 +25,20 @@ usersRouter.get("/", async (req, res, next) => {
     }
   });
 
+  usersRouter.get("/me", JWTAuthMiddleware, async (req, res, next) => {
+  try {
+    const user = await UsersModel.findById(req.user._id);
+    
+    if (!user) {
+      return next(createHttpError(404, "User not found"));
+    }
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
   usersRouter.get('/:id', async (req, res, next) => {
     try {
       const user = await UsersModel.findById(req.params.id);
@@ -57,7 +71,7 @@ usersRouter.get("/", async (req, res, next) => {
     }
   });
 
-  usersRouter.delete("/:userId", async (req, res, next) => {
+  usersRouter.delete("/:userId", JWTAuthMiddleware, async (req, res, next) => {
     try {
       const deletedUser = await UsersModel.findByIdAndDelete(
         req.params.userId
