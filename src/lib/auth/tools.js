@@ -29,7 +29,7 @@ export const createTokens = async (user) => {
     role: user.role,
   });
   console.log("accessToken", accessToken);
-  const refreshToken = await createRefreshToken({ _id: user._id });
+  const refreshToken = await refreshToken({ _id: user._id });
   console.log("refreshToken", refreshToken);
   user.refreshToken = refreshToken;
 
