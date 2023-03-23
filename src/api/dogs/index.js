@@ -3,6 +3,7 @@ import express from "express";
 import listEndpoints from "express-list-endpoints";
 import q2m from "query-to-mongo";
 import DogsModel from "./model.js"
+import { adminOnlyMiddleware } from "../../lib/auth/adminOnly.js";
 import { JWTAuthMiddleware } from "../../lib/auth/jwtAuth.js";
 import createHttpError from "http-errors";
 import { createAccessToken } from "../../lib/auth/tools.js";
@@ -12,7 +13,6 @@ import { v2 as cloudinary } from "cloudinary";
 import http from "http";
 import base64 from "base-64";
 import uniqid from "uniqid";
-import { adminOnlyMiddleware } from "../../lib/auth/adminOnly.js";
 
 const dogsRouter = express.Router();
 
@@ -57,7 +57,7 @@ const storage = multer.diskStorage({
 const upload = multer({ dest: 'public/images' });
 
 //Create a router to post a new dog
-dogsRouter.post("/", upload.single("image"), async (req, res, next) => {
+dogsRouter.post("/", JWTAuthMiddleware, adminOnlyMiddleware, upload.single("image"), async (req, res, next) => {
   try {
     const newDog = new DogsModel({
       name: req.body.name,
@@ -140,7 +140,7 @@ dogsRouter.get("/", async (req, res, next) => {
 });
 
 
-  dogsRouter.get('/:id', async (req, res, next) => {
+  dogsRouter.get('/:id', JWTAuthMiddleware, adminOnlyMiddleware, async (req, res, next) => {
     try {
       const dog = await DogsModel.findById(req.params.id);
       if (dog) {
@@ -153,7 +153,7 @@ dogsRouter.get("/", async (req, res, next) => {
     }
   });
 
-  dogsRouter.put('/:id', async (req, res, next) => {
+  dogsRouter.put('/:id', JWTAuthMiddleware, adminOnlyMiddleware, async (req, res, next) => {
     try {
       const updatedDog = await DogsModel.findByIdAndUpdate(req.params.id, req.body, { new: true });
       if (updatedDog) {
@@ -166,7 +166,7 @@ dogsRouter.get("/", async (req, res, next) => {
     }
   });
 
-  dogsRouter.delete('/:id', async (req, res, next) => {
+  dogsRouter.delete('/:id', JWTAuthMiddleware, adminOnlyMiddleware, async (req, res, next) => {
     try {
       const deletedDog = await DogsModel.findByIdAndDelete(req.params.id);
       if (deletedDog) {
@@ -180,7 +180,7 @@ dogsRouter.get("/", async (req, res, next) => {
     }
   });
 
-dogsRouter.post('/:id/upload', upload.single('image'), async (req, res) => {
+dogsRouter.post('/:id/upload', JWTAuthMiddleware, adminOnlyMiddleware, upload.single('image'), async (req, res) => {
   try {
     const image = req.file;
     const imagePath = image.path;

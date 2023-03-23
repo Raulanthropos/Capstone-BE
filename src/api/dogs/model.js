@@ -17,7 +17,7 @@ const dogSchema = new Schema(
         type: { type: String, required: true },
       },
     ],
-    location: { type: String, required: true },
+    location: { type: String, required: false },
     description: { type: String, required: true },
     isAdopted: { type: Boolean, required: true, default: false },
     isNeutered: { type: Boolean, required: true, default: false },
