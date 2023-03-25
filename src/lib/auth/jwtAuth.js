@@ -16,10 +16,10 @@ export const JWTAuthMiddleware = async (req, res, next) => {
     try {
       // 2. If authorization header is there, we should extract the token from it
       const accessToken = req.headers.authorization.replace("Bearer ", "");
-      console.log("accessToken", accessToken);
+      console.log("accessToken within the jwt", accessToken);
       // 3. Verify token (check the integrity and check expiration date)
       const payload = await verifyAccessToken(accessToken);
-      console.log("payload", payload);
+      console.log("payload within the jwt", payload);
       // 4. If everything is fine we should get back the payload and no errors --> next
       req.user = {
         _id: payload._id,

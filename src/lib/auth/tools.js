@@ -2,12 +2,12 @@ import jwt from "jsonwebtoken";
 import UsersModel from "../../api/users/model.js"
 
 export const createAccessToken = (payload) =>
-  new Promise((resolve, reject) =>
-  console.log("payload:", payload), // log the payload here
+//console.log("payload  within the tools:", payload)  log the payload here
+new Promise((resolve, reject) =>
     jwt.sign(
-      { ...payload, email: payload.email },
+      { ...payload },
       process.env.JWT_SECRET,
-      { expiresIn: "1 week" },
+      { expiresIn: "1h" },
       (err, token) => {
         if (err) reject(err);
         else resolve(token);
@@ -20,7 +20,7 @@ export const createAccessToken = (payload) =>
     jwt.sign(
       payload,
       process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: "1 year" },
+      { expiresIn: "7d" },
       (err, token) => {
         if (err) reject(err);
         else resolve(token);

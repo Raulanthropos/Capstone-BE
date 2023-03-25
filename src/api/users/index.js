@@ -93,11 +93,12 @@ usersRouter.delete("/session", JWTAuthMiddleware, async (req, res, next) => {
     console.log("This is the req.user when we access the try block", req.user)
     if (req.user) {
       console.log("This is the req.user inside the if statement", req.user)
-      const user = await UsersModel.updateOne(
+      const user = await UsersModel.findOneAndUpdate(
         { _id: req.user._id },
-        { $unset: { accessToken: 1 } }
+        { $unset: { accessToken: 1 } },
+        { new: true, runValidators: true }
       )
-      if (user.nModified > 0) {
+      if (user.isModified) {
         res.status(200).send({ message: "User logged out" })
       } else {
         res.status(400).send({ message: "User not found" })
@@ -186,24 +187,43 @@ usersRouter.post("/register", async (req, res, next) => {
 
 //7. LOGIN USER
 
+// usersRouter.post("/login", async (req, res, next) => {
+//   try {
+//     const { email, password } = req.body
+
+//     const user = await UsersModel.checkCredentials(email, password)
+//     console.log("This is mein body", req.body);
+//     if (user) {
+//       const payload = { _id: user._id, email: user.email }
+//       console.log("Payload", payload)
+//       const accessToken = await createAccessToken(payload)
+//       console.log("I am the accessToken", accessToken);
+//       res.send({ user, accessToken });
+//     } else {
+//       next(createHttpError(401, `Credentials are not ok!`))
+//     }
+//   } catch (error) {
+//     next(error)
+//   }
+// })
+
 usersRouter.post("/login", async (req, res, next) => {
   try {
-    const { email, password } = req.body
+    const { email, password } = req.body;
 
-    const user = await UsersModel.checkCredentials(email, password)
-    console.log("This is mein body", req.body);
-    if (user) {
-      const payload = { _id: user._id }
-      console.log("Payload", payload)
-      const accessToken = await createAccessToken(payload)
-      console.log("I am the accessToken", accessToken);
-      res.json({ user, accessToken });
-    } else {
-      next(createHttpError(401, `Credentials are not ok!`))
+    const user = await UsersModel.checkCredentials(email, password);
+    if (!user) {
+      return next(createHttpError(401, "Invalid email or password"));
     }
+
+    const payload = { _id: user._id, email: user.email };
+    const accessToken = await createAccessToken(payload);
+
+    res.send({ user: user.toJSON(), accessToken });
   } catch (error) {
-    next(error)
+    next(error);
   }
-})
+});
+
 
   export default usersRouter;
