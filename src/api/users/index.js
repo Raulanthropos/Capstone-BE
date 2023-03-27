@@ -48,7 +48,7 @@ try {
   if (!user) {
     return next(createHttpError(404, "User not found"));
   }
-  res.json(user);
+  res.send(user);
 } catch (error) {
   next(error);
 }
