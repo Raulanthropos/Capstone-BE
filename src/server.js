@@ -11,6 +11,8 @@ import {
   unauthorizedHandler,
   notFoundHandler,
 } from "./errorHandlers.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 const server = express();
 const port = process.env.PORT;
