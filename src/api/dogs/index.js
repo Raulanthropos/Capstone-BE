@@ -64,6 +64,7 @@ dogsRouter.post("/", JWTAuthMiddleware, adminOnlyMiddleware, upload.single("imag
       breed: req.body.breed,
       age: req.body.age,
       gender: req.body.gender,
+      weight: req.body.weight,
       location: req.body.location,
       description: req.body.description,
       isAdopted: req.body.isAdopted,
