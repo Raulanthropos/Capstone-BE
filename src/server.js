@@ -15,7 +15,20 @@ import {
 const server = express();
 const port = process.env.PORT;
 
-server.use(cors());
+const whitelist = [process.env.FE_URL, process.env.FE_URL_PROD];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (whitelist.indexOf(origin) !== -1) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  }
+};
+
+
+server.use(cors(corsOptions));
 server.use(express.json());
 
 // endpoints
