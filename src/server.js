@@ -11,13 +11,11 @@ import {
   unauthorizedHandler,
   notFoundHandler,
 } from "./errorHandlers.js";
-import dotenv from "dotenv";
-dotenv.config();
 
 const server = express();
 const port = process.env.PORT;
 
-const whitelist = [process.env.FE_URL, process.env.FE_URL_PROD];
+const whitelist = ["http://localhost:3000", "https://woof-paws-raulanthropos.vercel.app"];
 
 const corsOptions = {
   origin: function (origin, callback) {
