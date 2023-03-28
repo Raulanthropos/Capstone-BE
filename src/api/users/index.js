@@ -112,20 +112,21 @@ usersRouter.delete("/session", JWTAuthMiddleware, async (req, res, next) => {
 usersRouter.delete("/:userId", JWTAuthMiddleware, async (req, res, next) => {
   try {
     const deletedUser = await UsersModel.findByIdAndDelete(
-      req.params.userId
+      req.user._id
     );
 
     if (deletedUser) {
       res.status(204).send();
     } else {
       next(
-        createHttpError(404, `user with id ${req.params.userId} not found`)
+        createHttpError(404, `user with id ${req.user._id} not found`)
       );
     }
   } catch (error) {
     next(error);
   }
 });
+
 
 usersRouter.post("/register", async (req, res, next) => {
   try {
