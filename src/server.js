@@ -15,7 +15,7 @@ import {
 const server = express();
 const port = process.env.PORT;
 
-const whitelist = ["http://localhost:3000", "https://woof-paws-raulanthropos.vercel.app"];
+const whitelist = ["http://localhost:3000", "https://woof-paws-raulanthropos.vercel.app", "https://woof-paws.vercel.app"];
 
 const corsOptions = {
   origin: function (origin, callback) {
