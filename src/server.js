@@ -4,6 +4,7 @@ import cors from "cors";
 import mongoose from "mongoose";
 import usersRouter from "./api/users/index.js";
 import dogsRouter from "./api/dogs/index.js";
+import adoptionRouter from "./api/adoptions/index.js";
 import {
   badRequestHandler,
   forbiddenHandler,
@@ -22,7 +23,7 @@ const corsOptions = {
     if (whitelist.indexOf(origin) !== -1) {
       callback(null, true)
     } else {
-      callback(new Error('Not allowed by CORS'))
+      callback(null, true)
     }
   }
 };
@@ -35,6 +36,7 @@ server.use(express.static('public'));
 // endpoints
 server.use("/users", usersRouter);
 server.use("/dogs", dogsRouter);
+server.use("/adoptions", adoptionRouter);
 
 server.use(badRequestHandler);
 server.use(forbiddenHandler);
