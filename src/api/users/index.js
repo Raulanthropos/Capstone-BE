@@ -135,7 +135,7 @@ usersRouter.post("/register", async (req, res, next) => {
         return res.status(400).json({ message: err.message });
       }
       const { email } = req.body;
-      const { name, surname, password, age, description } = req.body;
+      const { name, surname, password, age, description, role } = req.body;
 
       // Check if the email already exists in the database
       const existingUser = await UsersModel.findOne({ email });
@@ -152,6 +152,7 @@ usersRouter.post("/register", async (req, res, next) => {
         password,
         age,
         description,
+        role,
         picture: req.file ? req.file.path : "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=687&q=80",
       });
 
