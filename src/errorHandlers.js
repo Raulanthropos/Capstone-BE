@@ -37,7 +37,7 @@ export const notFoundHandler = (err, req, res, next) => {
 };
 
 export const genericErrorHandler = (err, req, res, next) => {
-  console.log(err); // Add this line to log the error
+  console.log(err);
   if (res.headersSent) {
     next(err);
   } else {

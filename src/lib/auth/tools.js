@@ -1,8 +1,7 @@
 import jwt from "jsonwebtoken";
-import UsersModel from "../../api/users/model.js"
+// import UsersModel from "../../api/users/model.js"
 
 export const createAccessToken = (payload) =>
-//console.log("payload  within the tools:", payload)  log the payload here
 new Promise((resolve, reject) =>
     jwt.sign(
       { ...payload },

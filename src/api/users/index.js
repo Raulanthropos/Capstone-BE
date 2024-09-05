@@ -164,51 +164,6 @@ usersRouter.post("/register", async (req, res, next) => {
   }
 });
 
-  //6. REGISTER USER
-
-// usersRouter.post("/register", multer().fields(["name", "surname", "email", "password", "age", "description", "picture"]) ,async (req, res, next) => {
-//   try {
-//     const { email } = req.body
-
-//     // Check if the email already exists in the database
-//     const existingUser = await UsersModel.findOne({ email });
-//     if (existingUser) {
-//       const existingField = existingUser.email === email ? "email" : "unique"
-//       return res.status(400).send({ message: `user with this ${existingField} already exists` })
-//     }
-
-//     // If the email is unique, create the new user
-//     const newUser = new UsersModel(req.body)
-//     const { _id } = await newUser.save()
-
-//     res.status(201).send({ _id })
-//   } catch (error) {
-//     next(error)
-//   }
-// })
-
-//7. LOGIN USER
-
-// usersRouter.post("/login", async (req, res, next) => {
-//   try {
-//     const { email, password } = req.body
-
-//     const user = await UsersModel.checkCredentials(email, password)
-//     console.log("This is mein body", req.body);
-//     if (user) {
-//       const payload = { _id: user._id, email: user.email }
-//       console.log("Payload", payload)
-//       const accessToken = await createAccessToken(payload)
-//       console.log("I am the accessToken", accessToken);
-//       res.send({ user, accessToken });
-//     } else {
-//       next(createHttpError(401, `Credentials are not ok!`))
-//     }
-//   } catch (error) {
-//     next(error)
-//   }
-// })
-
 usersRouter.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
