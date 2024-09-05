@@ -28,7 +28,6 @@ export const JWTAuthMiddleware = async (req, res, next) => {
 
       // 5. Check if the user ID in the payload matches the ID of the user associated with the access token
       const user = await UsersModel.findById(req.user._id);
-      console.log("Dis is the user, maybe the broblem lies here", user);
       if (!user) {
         return next(createHttpError(404, "User not found"));
       }

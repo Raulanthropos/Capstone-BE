@@ -16,26 +16,30 @@ import {
 const server = express();
 const port = process.env.PORT;
 
-const whitelist = ["http://localhost:3000", "https://woof-paws-raulanthropos.vercel.app", "https://woof-paws.vercel.app"];
+const whitelist = [
+  "http://localhost:3000",
+  "https://woof-paws-raulanthropos.vercel.app",
+  "https://woof-paws.vercel.app",
+];
 
 const corsOptions = {
   origin: function (origin, callback) {
     if (whitelist.indexOf(origin) !== -1) {
-      callback(null, true)
+      callback(null, true);
     } else {
-      callback(null, true)
+      callback(null, true);
     }
-  }
+  },
 };
-
 
 server.use(cors(corsOptions));
 server.use(express.json());
-server.use(express.static('public'));
+server.use(express.static("public"));
 
 // endpoints
-server.use("/users", usersRouter);
+
 server.use("/dogs", dogsRouter);
+server.use("/users", usersRouter);
 server.use("/adoptions", adoptionRouter);
 
 server.use(badRequestHandler);

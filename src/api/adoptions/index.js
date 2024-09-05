@@ -8,7 +8,6 @@ const adoptionRouter = express.Router();
 
 adoptionRouter.get("/", JWTAuthMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
-    // console.log("This is the request", req)
     const adoptions = await adoptionModel.find().populate("user").populate("dog");
     console.log("adoption requests", adoptions);
     res.send(adoptions);
