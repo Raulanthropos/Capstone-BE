@@ -1,0 +1,15 @@
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: local-root-only
+      MYSQL_DATABASE: woof_paws
+      MYSQL_USER: woof_paws
+      MYSQL_PASSWORD: local-app-only
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - woof_paws_mysql:/var/lib/mysql
+
+volumes:
+  woof_paws_mysql:

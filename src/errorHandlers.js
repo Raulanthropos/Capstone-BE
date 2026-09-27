@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
 
 export const badRequestHandler = (err, req, res, next) => {
-  if (err.status === 400 || err instanceof mongoose.Error.ValidationError) {
+  if (err.type === "entity.parse.failed") {
+    res.status(400).json({ message: "Invalid JSON body." });
+  } else if (err.status === 400 || err instanceof mongoose.Error.ValidationError) {
     res.status(400).send({ message: err.message });
   } else if (err instanceof mongoose.Error.CastError) {
     res
@@ -37,10 +39,15 @@ export const notFoundHandler = (err, req, res, next) => {
 };
 
 export const genericErrorHandler = (err, req, res, next) => {
-  console.log(err);
   if (res.headersSent) {
-    next(err);
-  } else {
-    res.status(err.status || 500).send(err.message || "Generic Error");
+    return next(err);
   }
+  const status = err.status || 500;
+  if (status >= 500) {
+    // Database errors can contain SQL parameters, including password hashes.
+    console.error("Request failed:", err.cause?.code || err.code || err.name);
+  }
+  res.status(status).json({
+    message: status >= 500 ? "An unexpected error occurred." : err.message,
+  });
 };

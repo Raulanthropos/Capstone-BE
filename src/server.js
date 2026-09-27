@@ -1,61 +1,52 @@
-import express from "express";
-import listEndpoints from "express-list-endpoints";
-import cors from "cors";
 import mongoose from "mongoose";
-import usersRouter from "./api/users/index.js";
-import dogsRouter from "./api/dogs/index.js";
-import adoptionRouter from "./api/adoptions/index.js";
-import {
-  badRequestHandler,
-  forbiddenHandler,
-  genericErrorHandler,
-  unauthorizedHandler,
-  notFoundHandler,
-} from "./errorHandlers.js";
+import { createApp } from "./app.js";
+import { mysqlPool } from "./db/mysql.js";
 
-const server = express();
-const port = process.env.PORT;
+const port = Number(process.env.PORT ?? 3001);
+const host = process.env.API_HOST || "127.0.0.1";
+let server;
+let closing;
 
-const whitelist = [
-  "http://localhost:3000",
-  "https://woof-paws-raulanthropos.vercel.app",
-  "https://woof-paws.vercel.app",
-];
-
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (whitelist.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(null, true);
+function closeResources() {
+  closing ??= (async () => {
+    if (server?.listening) {
+      await new Promise((resolve) => server.close(resolve));
     }
-  },
-};
+    await Promise.all([mysqlPool.end(), mongoose.disconnect()]);
+  })();
+  return closing;
+}
 
-server.use(cors(corsOptions));
-server.use(express.json());
-server.use(express.static("public"));
+try {
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error("PORT must be an integer between 0 and 65535.");
+  }
+  await mysqlPool.query("SELECT 1");
 
-// endpoints
+  if (process.env.MONGO_URL) {
+    try {
+      await mongoose.connect(process.env.MONGO_URL, { serverSelectionTimeoutMS: 5000 });
+    } catch {
+      console.warn("MongoDB is unavailable; legacy endpoints will return 503.");
+    }
+  } else {
+    console.log("MySQL registration is enabled. Legacy endpoints await migration.");
+  }
 
-server.use("/dogs", dogsRouter);
-server.use("/users", usersRouter);
-server.use("/adoptions", adoptionRouter);
-
-server.use(badRequestHandler);
-server.use(forbiddenHandler);
-server.use(genericErrorHandler);
-server.use(unauthorizedHandler);
-server.use(notFoundHandler);
-
-mongoose.connect(process.env.MONGO_URL);
-
-//---
-
-mongoose.connection.on("connected", () => {
-  console.log("successfully connected to Mongo!");
-  server.listen(port, () => {
-    console.table(listEndpoints(server));
-    console.log(`Server is running on port ${port}`);
+  server = createApp().listen(port, host);
+  await new Promise((resolve, reject) => {
+    server.once("listening", resolve);
+    server.once("error", reject);
   });
-});
+  console.log("API listening at http://" + host + ":" + server.address().port);
+
+  for (const signal of ["SIGINT", "SIGTERM"]) {
+    process.once(signal, () => {
+      closeResources().catch(() => { process.exitCode = 1; });
+    });
+  }
+} catch (error) {
+  console.error("Server startup failed:", error.code || error.name);
+  await closeResources();
+  process.exitCode = 1;
+}
