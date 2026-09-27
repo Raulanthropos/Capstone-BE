@@ -306,3 +306,184 @@ test("listing failures return a generic 500 rather than an empty list", async (t
   assert.deepEqual(response.body, { message: "An unexpected error occurred." });
   assert.deepEqual(log.mock.calls[0].arguments, ["Request failed:", "ADOPTION_LIST_FAILURE"]);
 });
+
+async function reviewFixtures() {
+  await db.update(users).set({ role: "admin" }).where(eq(users.id, fixtureUsers[1].id));
+  const other = { ...fixtureUsers[0], id: randomUUID(), email: randomUUID() + "@example.invalid" };
+  fixtureUsers.push(other);
+  await db.insert(users).values(other);
+  const rows = [
+    { id: randomUUID(), userId: fixtureUsers[0].id, dogId: fixtureDogs[0].id },
+    { id: randomUUID(), userId: other.id, dogId: fixtureDogs[0].id },
+    { id: randomUUID(), userId: fixtureUsers[0].id, dogId: fixtureDogs[1].id },
+  ];
+  await db.insert(adoptionRequests).values(rows);
+  return { rows, token: tokens.issue(fixtureUsers[1].id) };
+}
+
+const review = (id, status, token, options = {}) => request("/adoptions/" + id, {
+  method: "PATCH", body: { status }, token, ...options,
+});
+
+test("admin listing and decisions require authentication and the current database admin role", async () => {
+  const { rows, token } = await reviewFixtures();
+  assert.equal((await request("/adoptions", { token: null })).status, 401);
+  assert.equal((await review(rows[0].id, "approved", null)).status, 401);
+  assert.equal((await request("/adoptions")).status, 403);
+  assert.equal((await review(rows[0].id, "approved", tokens.issue(fixtureUsers[0].id))).status, 403);
+  assert.equal((await request("/adoptions", { token })).status, 200);
+  await db.update(users).set({ role: "user" }).where(eq(users.id, fixtureUsers[1].id));
+  assert.equal((await request("/adoptions", { token })).status, 403);
+  assert.equal((await review(rows[0].id, "approved", token)).status, 403);
+  assert.ok((await ownRows()).every((row) => row.status === "pending"));
+});
+
+test("admin listing includes applicant and dog details, filters and pages without exposing hashes", async () => {
+  const { rows, token } = await reviewFixtures();
+  const response = await request("/adoptions?status=all&limit=100", { token });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  const row = response.body.items.find((item) => item._id === rows[0].id);
+  assert.deepEqual(Object.keys(row.user).sort(), ["_id", "age", "description", "email", "name", "surname"]);
+  assert.equal(row.user._id, fixtureUsers[0].id);
+  assert.equal(row.dog._id, fixtureDogs[0].id);
+  assert.equal(row.dog.name, fixtureDogs[0].name);
+  assert.equal(row.status, "pending");
+  assert.equal(row.reviewedBy, null);
+  assert.equal(row.reviewedAt, null);
+  assert.ok(!JSON.stringify(response.body).includes(passwordHash));
+  await review(rows[0].id, "rejected", token);
+  const filtered = await request("/adoptions?status=rejected&limit=1", { token });
+  assert.equal(filtered.status, 200);
+  assert.ok(filtered.body.items.every((item) => item.status === "rejected"));
+  assert.equal(filtered.body.limit, 1);
+  assert.ok(filtered.body.total >= 1);
+  const empty = await request("/adoptions?status=all&offset=100000", { token });
+  assert.deepEqual(empty.body.items, []);
+  for (const query of ["?status=other", "?status=pending&status=all", "?status[value]=pending",
+    "?userId=other", "?limit=0", "?limit=101", "?offset=-1"]) {
+    assert.equal((await request("/adoptions" + query, { token })).status, 400);
+  }
+});
+
+test("approval adopts the dog, closes its competing requests and records the reviewer atomically", async () => {
+  const { rows, token } = await reviewFixtures();
+  const result = await review(rows[0].id, "approved", token);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.status, "approved");
+  assert.equal(result.body.reviewedBy, fixtureUsers[1].id);
+  assert.ok(Number.isFinite(Date.parse(result.body.reviewedAt)));
+  assert.equal(result.body.closedRequests, 1);
+  const stored = await ownRows();
+  assert.equal(stored.find((row) => row.id === rows[0].id).status, "approved");
+  const competing = stored.find((row) => row.id === rows[1].id);
+  assert.equal(competing.status, "rejected");
+  assert.equal(competing.reviewedBy, fixtureUsers[1].id);
+  assert.equal(competing.reviewedAt.toISOString(), result.body.reviewedAt);
+  assert.equal(stored.find((row) => row.id === rows[2].id).status, "pending");
+  const [dog] = await db.select().from(dogs).where(eq(dogs.id, fixtureDogs[0].id));
+  assert.equal(dog.isAdopted, true);
+  const listing = await request("/dogs");
+  assert.ok(!listing.body.some((item) => item._id === dog.id));
+  assert.equal((await myRequests()).body.find((item) => item._id === rows[0].id).status, "approved");
+  assert.equal((await submit()).status, 409);
+});
+
+test("declining a request leaves the dog available and other applications pending", async () => {
+  const { rows, token } = await reviewFixtures();
+  const result = await review(rows[0].id, "rejected", token);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.status, "rejected");
+  assert.equal(result.body.closedRequests, 0);
+  const stored = await ownRows();
+  assert.equal(stored.find((row) => row.id === rows[1].id).status, "pending");
+  const [dog] = await db.select().from(dogs).where(eq(dogs.id, fixtureDogs[0].id));
+  assert.equal(dog.isAdopted, false);
+  assert.equal((await review(rows[0].id, "approved", token)).status, 409);
+});
+
+test("two admins approving competing requests can approve only one adoption", async () => {
+  const { rows, token } = await reviewFixtures();
+  await db.update(users).set({ role: "admin" }).where(eq(users.id, fixtureUsers[2].id));
+  const otherToken = tokens.issue(fixtureUsers[2].id);
+  const outcomes = await Promise.all([
+    review(rows[0].id, "approved", token), review(rows[1].id, "approved", otherToken),
+  ]);
+  assert.deepEqual(outcomes.map((item) => item.status).sort(), [200, 409]);
+  const stored = (await ownRows()).filter((row) => row.dogId === fixtureDogs[0].id);
+  assert.deepEqual(stored.map((row) => row.status).sort(), ["approved", "rejected"]);
+  const winner = outcomes.find((item) => item.status === 200).body;
+  assert.ok(stored.every((row) => row.reviewedBy === winner.reviewedBy));
+});
+
+test("simultaneous approve/decline decisions on one request cannot overwrite the first decision", async () => {
+  const { rows, token } = await reviewFixtures();
+  const outcomes = await Promise.all([
+    review(rows[0].id, "approved", token), review(rows[0].id, "rejected", token),
+  ]);
+  assert.deepEqual(outcomes.map((item) => item.status).sort(), [200, 409]);
+  const winner = outcomes.find((item) => item.status === 200).body;
+  const [stored] = await db.select().from(adoptionRequests).where(eq(adoptionRequests.id, rows[0].id));
+  const [dog] = await db.select().from(dogs).where(eq(dogs.id, fixtureDogs[0].id));
+  assert.equal(stored.status, winner.status);
+  assert.equal(dog.isAdopted, winner.status === "approved");
+});
+
+test("admin decisions validate IDs, status, JSON and extra fields before updating", async () => {
+  const { rows, token } = await reviewFixtures();
+  assert.equal((await review("invalid", "approved", token)).status, 400);
+  assert.equal((await review(randomUUID(), "approved", token)).status, 404);
+  assert.equal((await review(rows[0].id, "pending", token)).status, 400);
+  assert.equal((await review(rows[0].id, "approved", token, { contentType: "text/plain" })).status, 415);
+  for (const body of [null, [], {}, { status: "approved", userId: fixtureUsers[0].id },
+    { status: "approved", reviewedBy: fixtureUsers[0].id }, { status: ["approved"] }]) {
+    assert.equal((await review(rows[0].id, "approved", token, { body })).status, 400);
+  }
+  assert.equal((await review(rows[0].id + "?status=approved", "approved", token)).status, 400);
+  assert.ok((await ownRows()).every((row) => row.status === "pending"));
+});
+
+test("an already adopted dog cannot be approved again but its pending request can be declined", async () => {
+  const { rows, token } = await reviewFixtures();
+  await db.update(dogs).set({ isAdopted: true }).where(eq(dogs.id, fixtureDogs[0].id));
+  assert.equal((await review(rows[0].id, "approved", token)).status, 409);
+  assert.equal((await review(rows[0].id, "rejected", token)).status, 200);
+});
+
+test("admin role is rechecked inside the decision transaction", async (t) => {
+  const { rows, token } = await reviewFixtures();
+  const demotingDb = {
+    select: (...args) => db.select(...args),
+    async transaction(callback) {
+      await db.update(users).set({ role: "user" }).where(eq(users.id, fixtureUsers[1].id));
+      return db.transaction(callback);
+    },
+  };
+  const demotingApi = await serve(demotingDb);
+  t.after(() => demotingApi.close());
+  const result = await review(rows[0].id, "approved", token, { origin: demotingApi.origin });
+  assert.equal(result.status, 403);
+  assert.ok((await ownRows()).every((row) => row.status === "pending"));
+});
+
+test("failed approval rolls back the decision, competing requests and dog availability together", async (t) => {
+  const { rows, token } = await reviewFixtures();
+  const log = t.mock.method(console, "error", () => {});
+  const failingDb = {
+    select: (...args) => db.select(...args),
+    transaction: (callback) => db.transaction(async (tx) => {
+      await callback(tx);
+      throw Object.assign(new Error("Private transaction details."), { code: "REVIEW_TEST_FAILURE" });
+    }),
+  };
+  const failingApi = await serve(failingDb);
+  t.after(() => failingApi.close());
+  const result = await review(rows[0].id, "approved", token, { origin: failingApi.origin });
+  assert.equal(result.status, 500);
+  assert.deepEqual(result.body, { message: "An unexpected error occurred." });
+  assert.deepEqual(log.mock.calls[0].arguments, ["Request failed:", "REVIEW_TEST_FAILURE"]);
+  assert.ok((await ownRows()).every((row) => row.status === "pending" && row.reviewedBy === null));
+  const [dog] = await db.select().from(dogs).where(eq(dogs.id, fixtureDogs[0].id));
+  assert.equal(dog.isAdopted, false);
+  assert.equal((await review(rows[0].id, "approved", token)).status, 200);
+});

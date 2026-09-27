@@ -19,7 +19,7 @@ In PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`.
 
 The connection check does not start the API, create tables, or migrate data.
 Registration, login, current-user lookup, dog listing, and adoption request
-submission/own listing now use MySQL. The remaining API models still use
+submission, own listing, and admin review now use MySQL. The remaining API models still use
 MongoDB while the migration is in progress.
 
 ## Run the local API
@@ -103,9 +103,8 @@ audience are checked. Login and profile responses use `Cache-Control: no-store`.
 No refresh-token or server-side logout/revocation flow has been migrated yet;
 log in again after expiry. Changing `JWT_SECRET` invalidates existing tokens.
 
-User listing/editing/deletion, logout, dog management/individual lookup, and
-admin adoption listing (`GET /adoptions`) have not yet been migrated. Without
-`MONGO_URL`, they return 503 immediately. If explicitly
+User listing/editing/deletion, logout, and dog management/individual lookup
+have not yet been migrated. Without `MONGO_URL`, they return 503 immediately. If explicitly
 configured, MongoDB enables those legacy endpoints, but they still read the
 old collections. MySQL accounts and tokens do not provide access to those old
 accounts. This local authentication step does not add login rate limiting;
@@ -136,8 +135,8 @@ users. The command refuses to run with `NODE_ENV=production`.
 With both apps running, log in and open `http://localhost:3000/main`.
 Refresh an already open page to fetch the new list. Name, breed, age, and
 weight sorting work; the existing **Neutered only** checkbox filters the
-returned dogs. Connecting the frontend adoption button to the new request API
-and migrating dog management are the next steps.
+returned dogs. The adoption button submits requests, and administrators can
+review them at `/admin/adoptions`. Dog management still awaits migration.
 
 `GET /dogs` is a public MySQL endpoint and always lists only dogs with
 `isAdopted=false`. It returns the array expected by the frontend, including
@@ -208,10 +207,52 @@ descending ID for ties. It accepts only `limit` (1–100, default 100) and
 `offset` (0–100000, default 0). Invalid, repeated, or nested parameters return
 400. An empty page returns 200 with `[]`. It never accepts another user's ID.
 
-The schema reserves `approved` and `rejected` for a later review flow; there
-are no approval, rejection, cancellation, or resubmission endpoints yet.
 A previous request of any status prevents reapplication for the same dog.
-Admin listing and the frontend adoption-button integration are still pending.
+Cancellation and resubmission are not implemented.
+
+## Admin adoption review
+
+Administrators use the same login endpoint as regular users. Public
+registration always creates a `user`; creating an admin is a local database
+provisioning operation, not a role supplied through the registration form.
+Local account passwords and JWT secrets are not committed to this repository.
+
+`GET /adoptions` requires a current MySQL `admin` role. It accepts `status`
+(`pending` by default, or `approved`, `rejected`, `all`), plus `limit`
+(1-100, default 100) and `offset` (0-100000, default 0). It returns
+`{ items, total, limit, offset }`, oldest first with ID as the tiebreaker.
+Each item includes the request, applicant name/email/age/description, dog
+details, and nullable `reviewedBy` / `reviewedAt` fields. Password hashes are
+never returned. Listing and decision responses use `Cache-Control: no-store`.
+
+`PATCH /adoptions/:requestId` accepts only a JSON `status` field:
+
+```json
+{ "status": "approved" }
+```
+
+Only `pending` requests can become `approved` or `rejected`.
+Approval marks the dog adopted and declines all other pending applications
+for that dog in the same transaction. Declining changes only the selected
+request. The approving admin and timestamp are also recorded for requests
+automatically declined as a consequence of that approval. Reviewed requests
+cannot be reopened or overwritten through this API.
+
+Success returns the request ID, dog ID, status, review metadata, updated
+timestamp and `closedRequests` (the number of competing requests declined).
+Missing/expired credentials return 401, a non-admin role returns 403, malformed
+input returns 400/415, missing requests return 404, and previously reviewed
+requests or approval of an already adopted dog return 409. Database failures
+return a generic 500.
+
+The transaction rechecks and locks the admin account, then the dog, then the
+request. Dog locking serializes competing approvals and new submissions;
+concurrent decisions cannot approve two applications for the same dog.
+If any write fails, the decision and availability changes roll back together.
+
+After applying migrations, the frontend's **Review adoption requests** link
+opens `/admin/adoptions`. It provides status filters, pagination, applicant
+details, and confirmation dialogs describing approval/decline effects.
 
 ## MySQL schema and migrations
 
@@ -252,6 +293,10 @@ a unique pair, status, and timestamps. Those foreign keys restrict deletion
 of users/dogs with requests, preserving request history. Account/dog deletion
 policy will need to be handled explicitly when those endpoints are migrated.
 
+The fourth migration adds nullable `reviewed_by` and `reviewed_at` columns.
+The reviewer foreign key restricts deletion of an admin referenced by a decision.
+Existing pending requests are preserved.
+
 ## Project Overview
 This project is a dog fostering service website that allows dog shelters to provide details about dogs up for adoption, and users to browse and adopt dogs. The website includes three types of users: admins, dog shelters, and users interested in adopting dogs.
 
@@ -271,7 +316,9 @@ The backend API includes the following endpoints:
 * GET /dogs: Lists available dogs and ordered images from MySQL.
 * POST /adoptions: Creates a pending MySQL adoption request for the authenticated user.
 * GET /adoptions/me: Lists that user's own MySQL adoption requests.
-* Remaining user routes, dog management/individual lookup, and GET /adoptions:
+* GET /adoptions: Lists requests and applicant/dog details for administrators.
+* PATCH /adoptions/:requestId: Approves or declines a pending request as an administrator.
+* Remaining user routes and dog management/individual lookup:
   legacy routes pending migration.
 
 Routes do not use an `/api` prefix. Separate shelter and admin login routes are
@@ -296,6 +343,8 @@ Dog tests also cover numeric sorting, filtering, pagination, ordered photos,
 schema constraints, local image responses, and repeatable demo seeding.
 Adoption tests cover token ownership, availability, duplicate/concurrent
 submissions, private listing, pagination, foreign keys, and rollback on failure.
+Review tests cover admin access, fresh role checks, decision validation, audit
+fields, competing/concurrent decisions, availability changes and atomic rollback.
 User/dog test records run in transactions that are rolled back. Adoption tests
 commit temporary users/dogs so separate transaction connections can see them,
 then remove only their generated UUIDs in cleanup hooks. Those temporary

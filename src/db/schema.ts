@@ -57,6 +57,8 @@ export const adoptionRequests = mysqlTable("adoption_requests", {
   userId: char("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "restrict" }),
   dogId: char("dog_id", { length: 36 }).notNull().references(() => dogs.id, { onDelete: "restrict" }),
   status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
+  reviewedBy: char("reviewed_by", { length: 36 }).references(() => users.id, { onDelete: "restrict" }),
+  reviewedAt: timestamp("reviewed_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().onUpdateNow(),
 }, (table) => [
