@@ -2,6 +2,9 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import { createRegistrationRouter } from "./api/users/register.js";
+import { createAuthenticationRouter } from "./api/users/authentication.js";
+import { createAccessTokens } from "./lib/auth/accessTokens.js";
+import { db } from "./db/index.js";
 import usersRouter from "./api/users/index.js";
 import dogsRouter from "./api/dogs/index.js";
 import adoptionRouter from "./api/adoptions/index.js";
@@ -13,7 +16,8 @@ import {
   notFoundHandler,
 } from "./errorHandlers.js";
 
-export function createApp({ registrationDb } = {}) {
+export function createApp({ database = db, jwtSecret = process.env.JWT_SECRET } = {}) {
+  const accessTokens = createAccessTokens(jwtSecret);
   const app = express();
 
   app.use(cors({ origin: [
@@ -26,7 +30,8 @@ export function createApp({ registrationDb } = {}) {
   app.use(express.static("public"));
 
   // Migrated routes are available without a MongoDB connection.
-  app.use("/users", createRegistrationRouter(registrationDb));
+  app.use("/users", createRegistrationRouter(database));
+  app.use("/users", createAuthenticationRouter(database, accessTokens));
 
   app.use(["/users", "/dogs", "/adoptions"], (req, res, next) => {
     if (mongoose.connection.readyState !== 1) {

@@ -21,6 +21,7 @@ try {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("PORT must be an integer between 0 and 65535.");
   }
+  const app = createApp();
   await mysqlPool.query("SELECT 1");
 
   if (process.env.MONGO_URL) {
@@ -30,10 +31,10 @@ try {
       console.warn("MongoDB is unavailable; legacy endpoints will return 503.");
     }
   } else {
-    console.log("MySQL registration is enabled. Legacy endpoints await migration.");
+    console.log("MySQL registration, login and profile lookup are enabled. Legacy endpoints await migration.");
   }
 
-  server = createApp().listen(port, host);
+  server = app.listen(port, host);
   await new Promise((resolve, reject) => {
     server.once("listening", resolve);
     server.once("error", reject);
@@ -46,7 +47,8 @@ try {
     });
   }
 } catch (error) {
-  console.error("Server startup failed:", error.code || error.name);
+  console.error("Server startup failed:",
+    error.code === "INVALID_JWT_SECRET" ? error.message : error.code || error.name);
   await closeResources();
   process.exitCode = 1;
 }

@@ -5,7 +5,6 @@ import q2m from "query-to-mongo";
 import UsersModel from "./model.js";
 import { JWTAuthMiddleware } from "../../lib/auth/jwtAuth.js";
 import { adminOnlyMiddleware } from "../../lib/auth/adminOnly.js";
-import { createAccessToken } from "../../lib/auth/tools.js";
 import createHttpError from "http-errors";
 
 const usersRouter = express.Router();
@@ -21,18 +20,6 @@ usersRouter.get("/", async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-});
-
-usersRouter.get("/me", JWTAuthMiddleware, async (req, res, next) => {
-try {
-  const user = await UsersModel.findById(req.user._id);
-  if (!user) {
-    return next(createHttpError(404, "User not found"));
-  }
-  res.send(user);
-} catch (error) {
-  next(error);
-}
 });
 
 usersRouter.get('/:userId', JWTAuthMiddleware, adminOnlyMiddleware, async (req, res, next) => {
@@ -103,25 +90,6 @@ usersRouter.delete("/:userId", JWTAuthMiddleware, async (req, res, next) => {
         createHttpError(404, `user with id ${req.user._id} not found`)
       );
     }
-  } catch (error) {
-    next(error);
-  }
-});
-
-
-usersRouter.post("/login", async (req, res, next) => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await UsersModel.checkCredentials(email, password);
-    if (!user) {
-      return next(createHttpError(401, "Invalid email or password"));
-    }
-
-    const payload = { _id: user._id, email: user.email };
-    const accessToken = await createAccessToken(payload);
-
-    res.send({ user: user.toJSON(), accessToken });
   } catch (error) {
     next(error);
   }

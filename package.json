@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "auth:setup": "node scripts/setup-auth.js",
     "db:check": "node --env-file=.env scripts/check-db.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
