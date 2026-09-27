@@ -1,5 +1,11 @@
 # Capstone-BE
 
+## Online demo deployment
+
+See [Render + Aiven deployment](docs/render.md) for the complete setup,
+including TLS, environment variables, migrations, demo data and Vercel.
+
+
 ## Local MySQL connection check
 
 Use Node.js 24 LTS. Install dependencies with `npm ci`, copy `.env.example`
@@ -107,8 +113,8 @@ User listing/editing/deletion, logout, and dog management/individual lookup
 have not yet been migrated. Without `MONGO_URL`, they return 503 immediately. If explicitly
 configured, MongoDB enables those legacy endpoints, but they still read the
 old collections. MySQL accounts and tokens do not provide access to those old
-accounts. This local authentication step does not add login rate limiting;
-add abuse controls before exposing the API publicly.
+accounts. Login is limited to 20 failed attempts per 15 minutes per IP; registration
+to 10 attempts per hour per IP. These single-process limits reset on restart.
 
 The sibling `Capstone-FE` now uses a shared API client configured through
 `REACT_APP_API_URL`, defaulting locally to `http://127.0.0.1:3001`. Start it with
@@ -130,7 +136,8 @@ demo profiles; their photos are copies of existing repository assets served
 locally under `/demo-dogs/`. Cloudinary credentials are not needed. The seed
 runs in a transaction and uses fixed IDs. Rerunning it does not create
 duplicates or overwrite edits to existing dogs/photos. It does not change
-users. The command refuses to run with `NODE_ENV=production`.
+users. In production, the command requires the explicit `--allow-production` flag
+for a hosted demo; see the deployment guide.
 
 With both apps running, log in and open `http://localhost:3000/main`.
 Refresh an already open page to fetch the new list. Name, breed, age, and

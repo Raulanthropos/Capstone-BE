@@ -241,3 +241,19 @@ test("dog management and individual lookup remain unavailable until their migrat
     assert.deepEqual(await response.json(), { message: "This feature is temporarily unavailable." });
   }
 });
+
+
+test("deployed dog photos use the configured HTTPS origin regardless of request headers", async t => {
+  const { rows } = await fixtures();
+  const deployed = createApp({ database, jwtSecret: randomBytes(32).toString("hex"),
+    httpSettings: { trustProxy: 1, publicApiUrl: "https://woof-paws-api.onrender.com" } }).listen(0, "127.0.0.1");
+  await once(deployed, "listening");
+  t.after(async () => { deployed.closeAllConnections(); await new Promise(resolve => deployed.close(resolve)); });
+  const response = await fetch("http://127.0.0.1:" + deployed.address().port + "/dogs", {
+    headers: { "X-Forwarded-Proto": "http", "X-Forwarded-Host": "untrusted.example" },
+  });
+  assert.equal(response.status, 200);
+  const dog = (await response.json()).find(row => row._id === rows[0].id);
+  assert.equal(dog.images[0].url, "https://woof-paws-api.onrender.com/demo-dogs/luna.jpg");
+  assert.equal(dog.images[1].url, "https://example.invalid/extra.jpg");
+});

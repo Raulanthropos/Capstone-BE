@@ -6,13 +6,14 @@
   "type": "module",
   "scripts": {
     "auth:setup": "node scripts/setup-auth.js",
-    "db:check": "node --env-file=.env scripts/check-db.js",
+    "db:check": "node --env-file-if-exists=.env scripts/check-db.js",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:seed:dogs": "node --env-file=.env scripts/seed-dogs.js",
+    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.js",
+    "db:seed:dogs": "node --env-file-if-exists=.env scripts/seed-dogs.js",
     "test": "node --env-file-if-exists=.env --test --test-concurrency=1",
     "dev": "node --watch --env-file-if-exists=.env ./src/server.js",
-    "start": "node --env-file-if-exists=.env ./src/server.js"
+    "start": "node --env-file-if-exists=.env ./src/server.js",
+    "start:render": "npm run db:migrate && npm start"
   },
   "repository": {
     "type": "git",
@@ -35,6 +36,7 @@
     "drizzle-orm": "0.45.3",
     "express": "^4.18.2",
     "express-list-endpoints": "^6.0.0",
+    "express-rate-limit": "8.7.0",
     "express-validator": "^6.15.0",
     "fs-extra": "^11.1.0",
     "jsonwebtoken": "^9.0.0",
@@ -51,5 +53,8 @@
     "drizzle-kit": "0.31.11",
     "nodemon": "^2.0.20",
     "socket.io-client": "^4.8.4"
+  },
+  "engines": {
+    "node": "24.x"
   }
 }

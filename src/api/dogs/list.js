@@ -30,7 +30,7 @@ const publicDogFields = {
   description: dogs.description, isAdopted: dogs.isAdopted, isNeutered: dogs.isNeutered,
 };
 
-export function createDogListingRouter(database) {
+export function createDogListingRouter(database, { publicApiUrl } = {}) {
   const router = express.Router();
 
   router.get("/", async (req, res, next) => {
@@ -62,7 +62,7 @@ export function createDogListingRouter(database) {
         .orderBy(asc(dogImages.dogId), asc(dogImages.position));
 
       const imagesByDog = new Map(rows.map((dog) => [dog._id, []]));
-      const apiOrigin = req.protocol + "://" + req.get("host");
+      const apiOrigin = publicApiUrl || req.protocol + "://" + req.get("host");
       for (const { dogId, ...image } of images) {
         imagesByDog.get(dogId).push({
           ...image,

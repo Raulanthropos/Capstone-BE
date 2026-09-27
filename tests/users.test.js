@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import mysql from "mysql2/promise";
 import { drizzle } from "drizzle-orm/mysql2";
 import { createApp } from "../src/app.js";
+import { createAuthRateLimits } from "../src/lib/auth/rateLimits.js";
 import { mysqlConfig } from "../src/db/config.js";
 import { mysqlPool } from "../src/db/mysql.js";
 
@@ -58,7 +59,8 @@ before(async () => {
   connection = await mysql.createConnection(mysqlConfig);
   const [[row]] = await connection.query("SELECT COUNT(*) AS total FROM users");
   initialCount = row.total;
-  server = createApp({ database: drizzle(connection), jwtSecret }).listen(0, "127.0.0.1");
+  server = createApp({ database: drizzle(connection), jwtSecret,
+    authRateLimits: createAuthRateLimits({ loginLimit: 1000, registrationLimit: 1000 }) }).listen(0, "127.0.0.1");
   await once(server, "listening");
   origin = "http://127.0.0.1:" + server.address().port;
 });
