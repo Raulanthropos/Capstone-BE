@@ -8,6 +8,13 @@
       "when": 1790522134765,
       "tag": "0000_create_users",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1790526334093,
+      "tag": "0001_create_dogs",
+      "breakpoints": true
     }
   ]
 }

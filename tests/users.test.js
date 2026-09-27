@@ -205,7 +205,7 @@ test("localhost frontend preflight is allowed", async () => {
 });
 
 test("unmigrated endpoints return 503 promptly without MongoDB", async () => {
-  for (const path of ["/dogs", "/users", "/adoptions"]) {
+  for (const path of ["/dogs/00000000-0000-4000-8000-000000000001", "/users", "/adoptions"]) {
     const response = await fetch(origin + path, { signal: AbortSignal.timeout(2000) });
     assert.equal(response.status, 503);
     assert.deepEqual(await response.json(), { message: "This feature is temporarily unavailable." });

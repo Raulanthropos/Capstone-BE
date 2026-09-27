@@ -7,6 +7,7 @@ import { createAccessTokens } from "./lib/auth/accessTokens.js";
 import { db } from "./db/index.js";
 import usersRouter from "./api/users/index.js";
 import dogsRouter from "./api/dogs/index.js";
+import { createDogListingRouter } from "./api/dogs/list.js";
 import adoptionRouter from "./api/adoptions/index.js";
 import {
   badRequestHandler,
@@ -32,6 +33,7 @@ export function createApp({ database = db, jwtSecret = process.env.JWT_SECRET } 
   // Migrated routes are available without a MongoDB connection.
   app.use("/users", createRegistrationRouter(database));
   app.use("/users", createAuthenticationRouter(database, accessTokens));
+  app.use("/dogs", createDogListingRouter(database));
 
   app.use(["/users", "/dogs", "/adoptions"], (req, res, next) => {
     if (mongoose.connection.readyState !== 1) {
