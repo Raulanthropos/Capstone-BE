@@ -9,6 +9,7 @@ import usersRouter from "./api/users/index.js";
 import dogsRouter from "./api/dogs/index.js";
 import { createDogListingRouter } from "./api/dogs/list.js";
 import adoptionRouter from "./api/adoptions/index.js";
+import { createAdoptionRequestsRouter } from "./api/adoptions/requests.js";
 import {
   badRequestHandler,
   forbiddenHandler,
@@ -34,6 +35,7 @@ export function createApp({ database = db, jwtSecret = process.env.JWT_SECRET } 
   app.use("/users", createRegistrationRouter(database));
   app.use("/users", createAuthenticationRouter(database, accessTokens));
   app.use("/dogs", createDogListingRouter(database));
+  app.use("/adoptions", createAdoptionRequestsRouter(database, accessTokens));
 
   app.use(["/users", "/dogs", "/adoptions"], (req, res, next) => {
     if (mongoose.connection.readyState !== 1) {

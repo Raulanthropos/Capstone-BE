@@ -18,8 +18,9 @@ current database (`woof_paws`). The database is exposed at `127.0.0.1:3307`.
 In PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`.
 
 The connection check does not start the API, create tables, or migrate data.
-Registration, login, current-user lookup, and dog listing now use MySQL. The
-remaining API models still use MongoDB while the migration is in progress.
+Registration, login, current-user lookup, dog listing, and adoption request
+submission/own listing now use MySQL. The remaining API models still use
+MongoDB while the migration is in progress.
 
 ## Run the local API
 
@@ -103,8 +104,8 @@ No refresh-token or server-side logout/revocation flow has been migrated yet;
 log in again after expiry. Changing `JWT_SECRET` invalidates existing tokens.
 
 User listing/editing/deletion, logout, dog management/individual lookup, and
-adoption endpoints have not yet been migrated. Without `MONGO_URL`, they
-return 503 immediately. If explicitly
+admin adoption listing (`GET /adoptions`) have not yet been migrated. Without
+`MONGO_URL`, they return 503 immediately. If explicitly
 configured, MongoDB enables those legacy endpoints, but they still read the
 old collections. MySQL accounts and tokens do not provide access to those old
 accounts. This local authentication step does not add login rate limiting;
@@ -135,7 +136,8 @@ users. The command refuses to run with `NODE_ENV=production`.
 With both apps running, log in and open `http://localhost:3000/main`.
 Refresh an already open page to fetch the new list. Name, breed, age, and
 weight sorting work; the existing **Neutered only** checkbox filters the
-returned dogs. Adoption submission and dog management are still pending.
+returned dogs. Connecting the frontend adoption button to the new request API
+and migrating dog management are the next steps.
 
 `GET /dogs` is a public MySQL endpoint and always lists only dogs with
 `isAdopted=false`. It returns the array expected by the frontend, including
@@ -157,6 +159,59 @@ implemented. Equal sort values use ascending ID as a stable tiebreaker.
 Invalid, repeated, nested, or unsupported query parameters return 400.
 No matches return HTTP 200 with `[]`; database failures return 500.
 `/dogs/:id`, image uploads, and write operations remain legacy endpoints.
+
+## Local adoption requests
+
+Apply `npm run db:migrate` to create `adoption_requests`. Both endpoints below
+require `Authorization: Bearer <accessToken>` from the MySQL login endpoint
+and return `Cache-Control: no-store`.
+
+`POST /adoptions` accepts only this JSON body (no query parameters):
+
+```json
+{
+  "dogId": "<dog UUID from GET /dogs>"
+}
+```
+
+The user comes from the verified token. Client-supplied `user`, `userId`,
+`status`, and other extra fields are rejected. Success returns HTTP 201:
+
+```json
+{
+  "_id": "<request UUID>",
+  "dogId": "<dog UUID>",
+  "status": "pending",
+  "createdAt": "2026-09-27T12:00:00.000Z",
+  "updatedAt": "2026-09-27T12:00:00.000Z"
+}
+```
+
+Requests are saved in a transaction. The account and dog are checked and
+locked until commit; the dog must exist and be available. A unique user/dog
+constraint prevents duplicate requests, including simultaneous submissions.
+Different users can apply for the same available dog. Creating a request
+does **not** change `dogs.is_adopted`.
+
+| Status | Meaning |
+| --- | --- |
+| 400 | Invalid body, extra fields, or unsupported query parameters |
+| 401 | Missing/invalid/expired token or deleted account |
+| 404 | Dog does not exist |
+| 409 | Dog is already adopted, or this user already has a request for it |
+| 415 | Content type is not application/json |
+| 500 | Unexpected server/database failure; private details are omitted |
+
+`GET /adoptions/me` returns an array of the same request fields, restricted to
+the authenticated user. Results are ordered by newest creation time, then
+descending ID for ties. It accepts only `limit` (1–100, default 100) and
+`offset` (0–100000, default 0). Invalid, repeated, or nested parameters return
+400. An empty page returns 200 with `[]`. It never accepts another user's ID.
+
+The schema reserves `approved` and `rejected` for a later review flow; there
+are no approval, rejection, cancellation, or resubmission endpoints yet.
+A previous request of any status prevents reapplication for the same dog.
+Admin listing and the frontend adoption-button integration are still pending.
 
 ## MySQL schema and migrations
 
@@ -192,6 +247,11 @@ columns, so puppies and fractional kilograms are supported. Dog names are
 not unique. Each image belongs to a dog through a foreign key; its position
 determines display order. Deleting a dog also deletes its image rows.
 
+The third migration adds `adoption_requests` with user/dog foreign keys,
+a unique pair, status, and timestamps. Those foreign keys restrict deletion
+of users/dogs with requests, preserving request history. Account/dog deletion
+policy will need to be handled explicitly when those endpoints are migrated.
+
 ## Project Overview
 This project is a dog fostering service website that allows dog shelters to provide details about dogs up for adoption, and users to browse and adopt dogs. The website includes three types of users: admins, dog shelters, and users interested in adopting dogs.
 
@@ -209,7 +269,9 @@ The backend API includes the following endpoints:
 * POST /users/login: Authenticates a MySQL user and returns a one-hour JWT.
 * GET /users/me: Returns the authenticated MySQL user's public profile.
 * GET /dogs: Lists available dogs and ordered images from MySQL.
-* Remaining user routes, dog management/individual lookup, and /adoptions:
+* POST /adoptions: Creates a pending MySQL adoption request for the authenticated user.
+* GET /adoptions/me: Lists that user's own MySQL adoption requests.
+* Remaining user routes, dog management/individual lookup, and GET /adoptions:
   legacy routes pending migration.
 
 Routes do not use an `/api` prefix. Separate shelter and admin login routes are
@@ -224,15 +286,23 @@ Legacy MongoDB models remain under `src/api/` until their routes are migrated.
 
 ## Testing
 Run `npm test` with the local MySQL database running and migrations applied.
-The user and dog integration tests use real HTTP requests and MySQL queries.
+The user, dog, and adoption integration tests use real HTTP requests and MySQL queries.
+Test files run sequentially because they share the local database; concurrent
+submission scenarios still exercise multiple HTTP requests/pooled connections.
 They cover JSON and multipart registration, password hashing, role assignment,
 input validation, duplicate and concurrent registrations, login, profile
 lookup, rejected JWTs, safe database errors, and startup without MongoDB.
 Dog tests also cover numeric sorting, filtering, pagination, ordered photos,
 schema constraints, local image responses, and repeatable demo seeding.
-Test records run in transactions that are rolled back; the tests do not
-truncate tables or leave test users/dogs behind. Auth setup tests use temporary
-directories and never change your `.env`. Tests supply their own signing key.
+Adoption tests cover token ownership, availability, duplicate/concurrent
+submissions, private listing, pagination, foreign keys, and rollback on failure.
+User/dog test records run in transactions that are rolled back. Adoption tests
+commit temporary users/dogs so separate transaction connections can see them,
+then remove only their generated UUIDs in cleanup hooks. Those temporary
+records may briefly appear in the running local app during tests. Tests do not
+truncate tables and check that no test records remain after normal completion.
+Auth setup tests use temporary directories and never change your `.env`.
+Tests supply their own signing key.
 
 ## Contributors
 This project is developed by Ioannis Psychias and any other team members or collaborators.

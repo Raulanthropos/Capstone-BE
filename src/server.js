@@ -31,7 +31,7 @@ try {
       console.warn("MongoDB is unavailable; legacy endpoints will return 503.");
     }
   } else {
-    console.log("MySQL registration, login, profile lookup and dog listing are enabled. Legacy endpoints await migration.");
+    console.log("MySQL registration, login, profile lookup, dog listing and adoption requests are enabled. Legacy endpoints await migration.");
   }
 
   server = app.listen(port, host);

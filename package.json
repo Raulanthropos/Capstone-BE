@@ -10,7 +10,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed:dogs": "node --env-file=.env scripts/seed-dogs.js",
-    "test": "node --env-file-if-exists=.env --test",
+    "test": "node --env-file-if-exists=.env --test --test-concurrency=1",
     "dev": "node --watch --env-file-if-exists=.env ./src/server.js",
     "start": "node --env-file-if-exists=.env ./src/server.js"
   },

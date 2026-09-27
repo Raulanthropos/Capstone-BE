@@ -3,21 +3,11 @@ import bcrypt from "bcrypt";
 import { eq } from "drizzle-orm";
 import { body, validationResult } from "express-validator";
 import { users } from "../../db/schema.ts";
+import { publicUserFields } from "./publicFields.js";
+import { requireUser } from "../../lib/auth/requireUser.js";
 
 // Compare even when an email is unknown, using the same cost as registration.
 const dummyPasswordHash = "$2b$11$IwcWRvt8yMHgVa0rhx0tVeQ2TPNcPQuJ4ejxugyZMWwz1UZGIRzgy";
-
-// Explicit projection preserves the frontend contract and excludes password hashes.
-const publicUserFields = {
-  _id: users.id,
-  name: users.name,
-  surname: users.surname,
-  age: users.age,
-  email: users.email,
-  picture: users.picture,
-  role: users.role,
-  description: users.description,
-};
 
 const loginValidation = [
   body("email").isString().bail().trim().isLength({ max: 254 }).bail()
@@ -63,30 +53,8 @@ export function createAuthenticationRouter(database, accessTokens) {
     }
   });
 
-  router.get("/me", async (req, res, next) => {
-    res.set("Cache-Control", "no-store");
-    const unauthorized = () => res.status(401)
-      .set("WWW-Authenticate", "Bearer")
-      .json({ message: "Authentication required. Please log in again." });
-    const match = req.headers.authorization?.match(/^Bearer ([^\s]+)$/i);
-    if (!match) return unauthorized();
-
-    let userId;
-    try {
-      userId = accessTokens.verify(match[1]);
-    } catch {
-      return unauthorized();
-    }
-
-    try {
-      const [user] = await database.select(publicUserFields)
-        .from(users).where(eq(users.id, userId)).limit(1);
-      if (!user) return unauthorized();
-      res.json(user);
-    } catch (error) {
-      // A database outage is a server error, not an invalid token.
-      next(error);
-    }
+  router.get("/me", requireUser(database, accessTokens), (req, res) => {
+    res.json(req.user);
   });
 
   return router;

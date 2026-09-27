@@ -51,3 +51,16 @@ export const dogImages = mysqlTable("dog_images", {
 }, (table) => [
   uniqueIndex("dog_images_dog_position_unique").on(table.dogId, table.position),
 ]);
+
+export const adoptionRequests = mysqlTable("adoption_requests", {
+  id: char("id", { length: 36 }).primaryKey().$defaultFn(() => randomUUID()),
+  userId: char("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "restrict" }),
+  dogId: char("dog_id", { length: 36 }).notNull().references(() => dogs.id, { onDelete: "restrict" }),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
+  createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).notNull().defaultNow().onUpdateNow(),
+}, (table) => [
+  // One application per user/dog pair, including simultaneous submissions.
+  uniqueIndex("adoption_requests_user_dog_unique").on(table.userId, table.dogId),
+  index("adoption_requests_user_created_idx").on(table.userId, table.createdAt, table.id),
+]);

@@ -16,15 +16,4 @@ adoptionRouter.get("/", JWTAuthMiddleware, adminOnlyMiddleware, async (req, res)
   }
 });
 
-adoptionRouter.post("/", JWTAuthMiddleware, async (req, res) => {
-  try {
-    const { user, dog } = req.body;
-    const adoption = new adoptionModel({ user, dog });
-    const result = await adoption.save();
-    res.send(result);
-  } catch (error) {
-    res.status(500).send(error);
-  }
-});
-
 export default adoptionRouter;
