@@ -66,3 +66,30 @@ export const adoptionRequests = mysqlTable("adoption_requests", {
   uniqueIndex("adoption_requests_user_dog_unique").on(table.userId, table.dogId),
   index("adoption_requests_user_created_idx").on(table.userId, table.createdAt, table.id),
 ]);
+
+// An adoption request is the conversation: its applicant and current admins
+// may read and reply. No user-supplied participant list is trusted.
+export const messages = mysqlTable("messages", {
+  id: int("id", { unsigned: true }).autoincrement().primaryKey(),
+  requestId: char("request_id", { length: 36 }).notNull().references(() => adoptionRequests.id, { onDelete: "cascade" }),
+  senderId: char("sender_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "restrict" }),
+  clientMessageId: char("client_message_id", { length: 36 }).notNull(),
+  body: varchar("body", { length: 2000 }).notNull(),
+  createdAt: timestamp("created_at", { mode: "date", fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+}, (table) => [
+  uniqueIndex("messages_sender_client_unique").on(table.senderId, table.clientMessageId),
+  index("messages_request_id_idx").on(table.requestId, table.id),
+]);
+
+export const notifications = mysqlTable("notifications", {
+  id: char("id", { length: 36 }).primaryKey().$defaultFn(() => randomUUID()),
+  userId: char("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  requestId: char("request_id", { length: 36 }).notNull().references(() => adoptionRequests.id, { onDelete: "cascade" }),
+  kind: mysqlEnum("kind", ["adoption_created", "adoption_approved", "adoption_rejected", "message"]).notNull(),
+  audience: mysqlEnum("audience", ["admin", "user"]).notNull(),
+  readAt: timestamp("read_at", { mode: "date", fsp: 3 }),
+  createdAt: timestamp("created_at", { mode: "date", fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+}, (table) => [
+  index("notifications_user_created_idx").on(table.userId, table.createdAt, table.id),
+  index("notifications_user_read_idx").on(table.userId, table.readAt),
+]);

@@ -43,11 +43,13 @@
     "multer-storage-cloudinary": "^4.0.0",
     "mysql2": "3.24.4",
     "query-to-mongo": "^0.10.2",
+    "socket.io": "^4.8.4",
     "uniqid": "^5.4.0"
   },
   "devDependencies": {
     "dotenv": "^16.0.3",
     "drizzle-kit": "0.31.11",
-    "nodemon": "^2.0.20"
+    "nodemon": "^2.0.20",
+    "socket.io-client": "^4.8.4"
   }
 }

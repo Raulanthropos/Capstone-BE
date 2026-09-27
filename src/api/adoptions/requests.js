@@ -1,5 +1,6 @@
 import { parsePage, uuidPattern } from "./validation.js";
 import express from "express";
+import { notifyAdmins, publishInboxChanged } from "../../lib/inbox/notifications.js";
 import { randomUUID } from "node:crypto";
 import { desc, eq } from "drizzle-orm";
 import { adoptionRequests, dogs, users } from "../../db/schema.ts";
@@ -14,7 +15,7 @@ const requestFields = {
   updatedAt: adoptionRequests.updatedAt,
 };
 
-export function createAdoptionRequestsRouter(database, accessTokens) {
+export function createAdoptionRequestsRouter(database, accessTokens, onInboxChanged = () => {}) {
   const router = express.Router();
   const authenticate = requireUser(database, accessTokens);
 
@@ -30,7 +31,7 @@ export function createAdoptionRequestsRouter(database, accessTokens) {
     }
 
     try {
-      const request = await database.transaction(async (tx) => {
+      const { request, recipients } = await database.transaction(async (tx) => {
         // Recheck and keep the account present until its request is committed.
         const [user] = await tx.select({ id: users.id }).from(users)
           .where(eq(users.id, req.user._id)).limit(1).for("share");
@@ -48,8 +49,10 @@ export function createAdoptionRequestsRouter(database, accessTokens) {
         await tx.insert(adoptionRequests).values({ id, userId: user.id, dogId: dog.id, status: "pending" });
         const [created] = await tx.select(requestFields).from(adoptionRequests)
           .where(eq(adoptionRequests.id, id)).limit(1);
-        return created;
+        const recipients = await notifyAdmins(tx, id, "adoption_created", user.id);
+        return { request: created, recipients };
       });
+      publishInboxChanged(onInboxChanged, recipients);
       res.status(201).json(request);
     } catch (error) {
       if (error.status === 401) return authenticationRequired(res);

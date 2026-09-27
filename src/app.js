@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import { allowedOrigins } from "./lib/origins.js";
+import { createInboxRouter } from "./api/inbox/index.js";
 import mongoose from "mongoose";
 import { createRegistrationRouter } from "./api/users/register.js";
 import { createAuthenticationRouter } from "./api/users/authentication.js";
@@ -18,16 +20,11 @@ import {
   notFoundHandler,
 } from "./errorHandlers.js";
 
-export function createApp({ database = db, jwtSecret = process.env.JWT_SECRET } = {}) {
+export function createApp({ database = db, jwtSecret = process.env.JWT_SECRET, onInboxChanged = () => {} } = {}) {
   const accessTokens = createAccessTokens(jwtSecret);
   const app = express();
 
-  app.use(cors({ origin: [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://woof-paws-raulanthropos.vercel.app",
-    "https://woof-paws.vercel.app",
-  ] }));
+  app.use(cors({ origin: allowedOrigins }));
   app.use(express.json({ limit: "64kb" }));
   app.use(express.static("public"));
 
@@ -35,8 +32,9 @@ export function createApp({ database = db, jwtSecret = process.env.JWT_SECRET } 
   app.use("/users", createRegistrationRouter(database));
   app.use("/users", createAuthenticationRouter(database, accessTokens));
   app.use("/dogs", createDogListingRouter(database));
-  app.use("/adoptions", createAdoptionRequestsRouter(database, accessTokens));
-  app.use("/adoptions", createAdoptionReviewRouter(database, accessTokens));
+  app.use("/adoptions", createAdoptionRequestsRouter(database, accessTokens, onInboxChanged));
+  app.use("/adoptions", createAdoptionReviewRouter(database, accessTokens, onInboxChanged));
+  app.use("/inbox", createInboxRouter(database, accessTokens, onInboxChanged));
 
   app.use(["/users", "/dogs"], (req, res, next) => {
     if (mongoose.connection.readyState !== 1) {

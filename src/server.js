@@ -1,14 +1,20 @@
 import mongoose from "mongoose";
+import { createServer } from "node:http";
+import { db } from "./db/index.js";
+import { createAccessTokens } from "./lib/auth/accessTokens.js";
+import { attachRealtime } from "./lib/realtime.js";
 import { createApp } from "./app.js";
 import { mysqlPool } from "./db/mysql.js";
 
 const port = Number(process.env.PORT ?? 3001);
 const host = process.env.API_HOST || "127.0.0.1";
 let server;
+let realtime;
 let closing;
 
 function closeResources() {
   closing ??= (async () => {
+    if (realtime) await realtime.close();
     if (server?.listening) {
       await new Promise((resolve) => server.close(resolve));
     }
@@ -21,7 +27,7 @@ try {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("PORT must be an integer between 0 and 65535.");
   }
-  const app = createApp();
+  const app = createApp({ onInboxChanged: (ids) => realtime?.publish(ids) });
   await mysqlPool.query("SELECT 1");
 
   if (process.env.MONGO_URL) {
@@ -34,7 +40,9 @@ try {
     console.log("MySQL registration, login, profile lookup, dog listing and adoption requests are enabled. Legacy endpoints await migration.");
   }
 
-  server = app.listen(port, host);
+  server = createServer(app);
+  realtime = attachRealtime(server, db, createAccessTokens());
+  server.listen(port, host);
   await new Promise((resolve, reject) => {
     server.once("listening", resolve);
     server.once("error", reject);

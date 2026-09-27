@@ -29,6 +29,20 @@
       "when": 1790531086237,
       "tag": "0003_add_adoption_review_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1790533432113,
+      "tag": "0004_silly_jocasta",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1790534508100,
+      "tag": "0005_precise_inbox_timestamps",
+      "breakpoints": true
     }
   ]
 }

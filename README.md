@@ -358,3 +358,65 @@ This project is developed by Ioannis Psychias and any other team members or coll
 
 ## License
 The project is licensed under [Insert License Here].
+
+## Notifications and private adoption conversations
+
+Apply migrations and start the local API with Node 24:
+
+```sh
+npm install
+npm run db:migrate
+npm run dev
+```
+
+The inbox uses MySQL (`messages`, `notifications`) and Socket.IO on the same
+HTTP server/port as Express. An adoption request is also a conversation:
+only its applicant and current administrators may read or reply. Existing
+requests automatically appear as conversations; no backfill is needed.
+Conversations remain available after an approval or decline.
+
+All inbox HTTP endpoints require the existing Bearer JWT:
+
+| Method | Endpoint | Behavior |
+| --- | --- | --- |
+| GET | /inbox/conversations?limit=20&offset=0 | Own requests, or all requests for admins, with last-message previews |
+| GET | /inbox/conversations/:requestId | Authorized conversation details |
+| GET | /inbox/conversations/:requestId/messages?limit=50&beforeId=123 | Most recent messages, returned oldest first; cursor for older history |
+| POST | /inbox/conversations/:requestId/messages | Send JSON `{body, clientMessageId}`; text 1–2000 characters, client ID a UUID |
+| GET | /inbox/notifications?limit=20&offset=0 | Own notification page, total and unread count |
+| PATCH | /inbox/notifications/:id/read | Mark one own notification read; JSON `{}` |
+| POST | /inbox/notifications/read-all | Mark all own notifications read; JSON `{}` |
+
+Sending retries reuse the same clientMessageId and body. They return the
+existing message instead of inserting a duplicate. New sends return 201,
+retries 200. A different body with that ID returns 409. The local server
+allows 60 send attempts per account per minute, returning 429 / Retry-After
+above that limit. This limiter is currently held in process memory.
+
+New requests notify current admins; approval/decline notifies the applicant.
+Approval also notifies applicants whose competing requests were declined.
+Messages notify the other participants. Writes and notifications share one
+transaction, so rollback cannot leave a misleading notification. Old actions
+are not retroactively notified. Admin-only notifications are hidden if the
+recipient loses their admin role.
+
+Connect Socket.IO with `auth: {token: accessToken}`. The server verifies the
+JWT and current account, assigns its own per-user room, and disconnects at
+token expiry. Clients cannot choose another user's room. The only business
+event, `inbox:changed`, carries no private content: clients read the authorized
+HTTP APIs to refresh. Message text is stored and rendered as plain text.
+
+Events are published after commit. MySQL is the durable source of truth;
+there is no durable socket-event queue. The frontend reloads on reconnect,
+window focus and every 30 seconds while visible, recovering missed updates
+after a restart. Socket transport is an immediate refresh signal, not the
+message database.
+
+`npm test` includes real HTTP/MySQL/Socket.IO tests for participant access,
+role changes, notification ownership, retries, pagination, socket expiry,
+recipient isolation and transaction rollback. Tests delete only their fixtures.
+
+Render deployment is a later step. This local implementation runs one API
+instance; multiple instances need a shared Socket.IO adapter and shared rate
+limits. The MySQL Docker volume is local and must be replaced with a persistent
+deployment database before release. No Render deployment is configured here.
